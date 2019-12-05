@@ -17,7 +17,7 @@ variables:
 jobs:
 - job: WebApp
   steps:
-  - template: build/azure-pipelines-steps.init.yml
+  - template: build/azure-pipelines-steps.gitversion.yml
     parameters:
       toolPath: $(Build.BinariesDirectory)
       dotnetInstallConfigFile: $(Build.NuGetConfigPath)
