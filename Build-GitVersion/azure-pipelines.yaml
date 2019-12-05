@@ -10,20 +10,16 @@ pr:
     - feature/*
 
 variables:
-  PackagesToPack: 'src\**\*.csproj'
-  BuildConfig: 'Release'
+  NuGetConfigPath: 'NuGet-PublicOnly.config' # workaround for a bug in dotnet cli https://github.com/dotnet/cli/issues/9586#issuecomment-484585146
   GitVersionVersion: '5.1.1' # release latest version here https://www.nuget.org/packages/GitVersion.Tool
   NuGetVersion: '5.3.1' # see recommended version here https://www.nuget.org/downloads
 
 jobs:
-- job: NuGet
-  pool:
-    vmImage: windows-2019 # https://docs.microsoft.com/en-us/azure/devops/pipelines/agents/hosted?view=azure-devops
+- job: WebApp
   steps:
-  - template: build/azure-pipelines-steps.dotnet-nuget.yml
+  - template: build/azure-pipelines-steps.init.yml
     parameters:
+      toolPath: $(Build.BinariesDirectory)
+      dotnetInstallConfigFile: $(Build.NuGetConfigPath)
       gitVersionVersion: $(Build.GitVersionVersion)
       nugetVersion: $(Build.NuGetVersion)
-      buildConfiguration: $(Build.BuildConfig)
-      packagesToPack: $(Build.PackagesToPack)
-      # Publishes all created NuGet packages to your artifacts

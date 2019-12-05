@@ -1,42 +1,54 @@
-resources:
-- repo: self
-
 trigger:
-  batch: false # batch changes if true, start a new build for every push if false
   branches:
     include:
     - master
 
+pr:
+  branches:
+    include:
+    - master
+    - feature/*
+
 variables:
-  Docker.UserName: mydockerusername # TODO: Replace with your Docker Username
-  Docker.ImageName: mydockerimagename # TODO: Replace with your Docker ImageName
-  Docker.RepositoryName: mydockerepositoryname # TODO: Replace with your Docker RepositoryName
+  Docker.Registry: mydockerregistry # TODO: Replace with your Docker Username
+  Docker.Repository: mydockerrepository # TODO: Replace with your Docker ImageName
+  Docker.ImageName: mydockerimagename # TODO: Replace with your Docker RepositoryName
+  SourcePath: 'src'
+  BuildConfig: 'Release'
+  NuGetConfigPath: 'NuGet.config' # workaround for a bug in dotnet cli https://github.com/dotnet/cli/issues/9586#issuecomment-484585146
+  GitVersionVersion: '5.1.1' # release latest version here https://www.nuget.org/packages/GitVersion.Tool
+  NuGetVersion: '5.3.1' # see recommended version here https://www.nuget.org/downloads
 
 jobs:
 - job: WebApp
   pool:
-    vmImage: vs2017-win2016
+    vmImage: vs2017-win2016 # https://docs.microsoft.com/en-us/azure/devops/pipelines/agents/hosted?view=azure-devops
   steps:
-  - template: templates/azure-pipelines-steps.aspnetcore.yml  # see AspNetCore/azure-pipelines-steps.aspnetcore.yml
+  - template: build/azure-pipelines-steps.aspnetcore.yml  # see AspNetCore/azure-pipelines-steps.aspnetcore.yml
     parameters:
-     gitVersionVersion: '4.0.0-beta0012' # release latest version here https://www.nuget.org/packages/GitVersion
-     nugetVersion: '4.9.2' # see recommended version here https://www.nuget.org/downloads
-     buildConfiguration: 'Release'
+     gitVersionVersion: $(Build.GitVersionVersion)
+     nugetVersion: $(Build.NuGetVersion)
+     buildConfiguration: $(Build.BuildConfig)
      deployPackage: false
      deployFiles: true # files only here
+     outputDirectory: $(Build.ArtifactStagingDirectory)/app
 
 - job: DockerOnLinux
   dependsOn: WebApp
   pool:
-    vmImage: ubuntu-16.04
+    vmImage: ubuntu-16.04 # https://docs.microsoft.com/en-us/azure/devops/pipelines/agents/hosted?view=azure-devops
   steps:
-  - template: templates/azure-pipelines-steps.docker-from-files-template.yml 
+  - template: build/azure-pipelines-steps.docker-azurecr-from-files-template.yml  # Template reference
     parameters:
-     dockerUserName: $(Docker.UserName)
-     dockerRepositoryName: $(Docker.RepositoryName)
+     dockerRegistry: $(Docker.Registry)
+     dockerRepository: $(Docker.Repository)
      dockerImageName: $(Docker.ImageName)
-     dockerFile: Dockerfile.Linux
+     dockerImageTag: $(Build.BuildNumber)
+     dockerFile: src/MyApp/Dockerfile.Linux
      dockerContents: '$(System.ArtifactsDirectory)/drop/files/MyAspNetCoreApp' # artifacts from AspNetCore/azure-pipelines-steps.aspnetcore.yml
+     artifactsTargetFolder: $(System.DefaultWorkingDirectory)/_artifacts/dockercontents
+     dockerAzureSubscriptionName: 'Your Subscription Name'
+     dockerAzureCRSubscription: 'YourAzureContainerRegistrySubscription'
      # TODO: Replace MyAspNetCoreApp with your AppName
 
 - job: DockerOnWindows
@@ -44,11 +56,15 @@ jobs:
   pool:
     vmImage: win1803
   steps:
-  - template: templates/azure-pipelines-steps.docker-from-files-template.yml  # Template reference
+  - template: build/azure-pipelines-steps.docker-azurecr-from-files-template.yml  # Template reference
     parameters:
-     dockerUserName: $(Docker.UserName)
-     dockerRepositoryName: $(Docker.RepositoryName)
+     dockerRegistry: $(Docker.Registry)
+     dockerRepository: $(Docker.Repository)
      dockerImageName: $(Docker.ImageName)
-     dockerFile: Dockerfile.windowsservercore-1803
+     dockerImageTag: $(Build.BuildNumber)
+     dockerFile: src/MyApp/Dockerfile.windowsservercore-1803
      dockerContents: '$(System.ArtifactsDirectory)/drop/files/MyAspNetCoreApp' # artifacts from AspNetCore/azure-pipelines-steps.aspnetcore.yml
+     artifactsTargetFolder: $(System.DefaultWorkingDirectory)/_artifacts/dockercontents
+     dockerAzureSubscriptionName: 'Your Subscription Name'
+     dockerAzureCRSubscription: 'YourAzureContainerRegistrySubscription'
      # TODO: Replace MyAspNetCoreApp with your AppName
