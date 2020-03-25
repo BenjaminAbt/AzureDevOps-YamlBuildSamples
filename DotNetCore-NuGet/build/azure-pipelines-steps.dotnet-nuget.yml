@@ -49,6 +49,7 @@ steps:
   inputs:
     command: test
     projects: 'tests/**/*.csproj'
+    arguments: --no-restore --no-build
 
 - task: DotNetCoreCLI@2
   displayName: ".NET pack"
